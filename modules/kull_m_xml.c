@@ -1,5 +1,5 @@
 /*	Benjamin DELPY `gentilkiwi`
-	http://blog.gentilkiwi.com
+	https://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
@@ -127,13 +127,7 @@ wchar_t * kull_m_xml_getTextValue(IXMLDOMNode *pNode, PCWSTR name)
 				kull_m_string_copy(&result, bstrGeneric);
 				SysFreeString(bstrGeneric);
 			}
-
 		}
-
-
-
-
-
 	}
 	return result;
 }

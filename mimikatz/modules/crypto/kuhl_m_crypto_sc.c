@@ -1,5 +1,5 @@
 /*	Benjamin DELPY `gentilkiwi`
-	http://blog.gentilkiwi.com
+	https://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
@@ -467,8 +467,6 @@ void kuhl_m_crypto_l_mdr(LPCWSTR szMdr, SCARDCONTEXT ctxScard, SCARDHANDLE hScar
 				enuma(&cd, NULL);
 				enuma(&cd, "mscp");
 				enuma(&cd, "mimikatz");
-				
-
 
 				status = cd.pfnCardDeleteContext(&cd);
 				if(status != SCARD_S_SUCCESS)

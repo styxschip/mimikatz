@@ -1,5 +1,5 @@
 /*	Benjamin DELPY `gentilkiwi`
-	http://blog.gentilkiwi.com
+	https://blog.gentilkiwi.com
 	benjamin@gentilkiwi.com
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
@@ -41,7 +41,10 @@ typedef enum _KIWI_OS_INDEX {
 	KiwiOsIndex_10_1709	= 11,
 	KiwiOsIndex_10_1803	= 12,
 	KiwiOsIndex_10_1809	= 13,
-	KiwiOsIndex_MAX		= 14,
+	KiwiOsIndex_10_1903	= 14,
+	KiwiOsIndex_10_1909	= 15,
+	KiwiOsIndex_10_2004	= 16,
+	KiwiOsIndex_MAX		= 17,
 } KIWI_OS_INDEX, *PKIWI_OS_INDEX;
 
 #if defined(_M_X64) || defined(_M_ARM64) // TODO:ARM64
